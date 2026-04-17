@@ -120,6 +120,14 @@ template <typename E> struct enum_traits;
 
 using bionic_uid = unsigned int;
 
+const int CHARACTER_STAT_MIN = 4;
+const int CHARACTER_STAT_MAX = 20;
+
+const int CHARACTER_AGE_MIN = 16;
+const int CHARACTER_AGE_MAX = 55;
+
+const int NAME_CHARACTER_LIMIT = 50;
+
 extern int character_max_str;
 extern int character_max_dex;
 extern int character_max_per;
@@ -137,8 +145,6 @@ enum vision_modes {
     NIGHTVISION_1,
     NIGHTVISION_2,
     NIGHTVISION_3,
-    FULL_ELFA_VISION,
-    ELFA_VISION,
     CEPH_VISION,
     /// mutate w/ id "FEL_NV" & name "Feline Vision" see pretty well at night
     FELINE_VISION,
@@ -4313,6 +4319,12 @@ template<>
 struct enum_traits<character_stat> {
     static constexpr character_stat last = character_stat::DUMMY_STAT;
 };
+
+namespace io
+{
+std::string enum_to_full_string( character_stat data );
+} // namespace io
+
 /// Get translated name of a stat
 std::string get_stat_name( character_stat Stat );
 #endif // CATA_SRC_CHARACTER_H

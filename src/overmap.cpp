@@ -427,9 +427,7 @@ void overmap::set_seen( const tripoint_om_omt &p, om_vision_level val, bool forc
 
     layer[p.z() + OVERMAP_DEPTH].visible[p.xy()] = val;
 
-    if( val > om_vision_level::details ) {
-        add_extra_note( p );
-    }
+    add_extra_note( p );
 }
 
 om_vision_level overmap::seen( const tripoint_om_omt &p ) const
@@ -686,26 +684,10 @@ void overmap::add_extra( const tripoint_om_omt &p, const map_extra_id &id )
     }
 }
 
-static void defer_auto_note( const tripoint_abs_omt &target )
-{
-    g->unvisited_map_extras.insert( target );
-}
-
-void overmap::add_deferred_extra_note( const tripoint_abs_omt &p )
-{
-    point_abs_om overmap_coord;
-    tripoint_om_omt omt_coord;
-    std::tie( overmap_coord, omt_coord ) = project_remain<coords::om>( p );
-    add_extra_note( omt_coord, true );
-}
-
 void overmap::add_extra_note( const tripoint_om_omt &p, bool force_add )
 {
-    if( seen( p ) < om_vision_level::details ) {
-        return;
-    }
-
-    // WTF is this doing? We just figured out the map extra's ID in overmap::add_extra(), what's with this bizarre lookup?
+    // overmap::add_extra_note is called from overmap::set_seen - to add notes for already generated,
+    // but as yet unseen, tiles.
     const std::vector<om_map_extra> &layer_extras = layer[p.z() + OVERMAP_DEPTH].extras;
     auto extrait = std::find_if( layer_extras.begin(),
     layer_extras.end(), [&p]( const om_map_extra & extra ) {
@@ -716,10 +698,15 @@ void overmap::add_extra_note( const tripoint_om_omt &p, bool force_add )
     }
     const map_extra_id &extra = extrait->id;
 
-    if( !force_add && !extra->see_from_afar ) {
-        tripoint_abs_omt target = project_combine( this->pos(), p );
-        defer_auto_note( target );
+    if( !force_add && !extra->potentially_visible_at( seen( p ) ) ) {
         return;
+    }
+
+    if( !force_add && extra->visibility == map_extra_visibility::same_tile ) {
+        tripoint_abs_omt target = project_combine( this->pos(), p );
+        if( target != get_avatar().pos_abs_omt() ) {
+            return;
+        }
     }
 
 
@@ -3134,6 +3121,11 @@ bool overmap::place_special_attempt(
                 continue;
             }
             const overmap_special_placement_constraints &constraints = special.get_constraints();
+            // Deck-draw losers are kept in the batch for chain-spawned descendants
+            // but must not be placed on this overmap.
+            if( iter->instances_placed >= constraints.occurrences.max ) {
+                continue;
+            }
             // If we haven't finished placing minimum instances of all specials,
             // skip specials that are at their minimum count already.
             if( !place_optional && iter->instances_placed >= constraints.occurrences.min ) {
@@ -3280,14 +3272,21 @@ void overmap::place_specials( overmap_special_batch &enabled_specials )
                 // Allow exactly one placement attempt on this overmap.
                 iter->instances_placed = constraints.occurrences.max - 1;
             } else {
-                iter = enabled_specials.erase( iter );
-                continue;
+                // Sentinel: max marks "deck said no for this overmap" while keeping
+                // the entry alive for chain-spawned descendants to draw fresh.
+                iter->instances_placed = constraints.occurrences.max;
             }
         }
         ++iter;
     }
-    // Bail out early if we have nothing to place.
-    if( enabled_specials.empty() ) {
+    // Bail out early if we have nothing to place.  Deck-draw losers stay in
+    // the batch (instances_placed == max) for chain-spawned descendants, so
+    // check for actual candidates rather than batch emptiness.
+    const bool any_candidates = std::any_of( enabled_specials.begin(), enabled_specials.end(),
+    []( const overmap_special_placement & p ) {
+        return p.instances_placed < p.special_details->get_constraints().occurrences.max;
+    } );
+    if( !any_candidates ) {
         return;
     }
     om_special_sectors sectors = get_sectors( OMSPEC_FREQ );

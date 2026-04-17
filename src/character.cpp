@@ -338,8 +338,6 @@ static const trait_id trait_DEBUG_SILENT( "DEBUG_SILENT" );
 static const trait_id trait_DEFT( "DEFT" );
 static const trait_id trait_DOWN( "DOWN" );
 static const trait_id trait_EATHEALTH( "EATHEALTH" );
-static const trait_id trait_ELFA_FNV( "ELFA_FNV" );
-static const trait_id trait_ELFA_NV( "ELFA_NV" );
 static const trait_id trait_FACIAL_HAIR_NONE( "FACIAL_HAIR_NONE" );
 static const trait_id trait_FAERIECREATURE( "FAERIECREATURE" );
 static const trait_id trait_FAT( "FAT" );
@@ -2477,14 +2475,8 @@ void Character::recalc_sight_limits()
         ( is_mounted() && mounted_creature->has_flag( mon_flag_MECH_RECON_VISION ) ) ) {
         vision_mode_cache.set( NIGHTVISION_3 );
     }
-    if( has_active_mutation( trait_ELFA_FNV ) ) {
-        vision_mode_cache.set( FULL_ELFA_VISION );
-    }
     if( has_active_mutation( trait_CEPH_VISION ) ) {
         vision_mode_cache.set( CEPH_VISION );
-    }
-    if( has_active_mutation( trait_ELFA_NV ) ) {
-        vision_mode_cache.set( ELFA_VISION );
     }
     if( has_active_mutation( trait_NIGHTVISION2 ) ) {
         vision_mode_cache.set( NIGHTVISION_2 );
@@ -2530,11 +2522,10 @@ float Character::get_vision_threshold( float light_level ) const
                                      ( LIGHT_AMBIENT_LIT - LIGHT_AMBIENT_MINIMAL ) );
 
     float range = get_per() / 3.0f;
-    if( vision_mode_cache[NIGHTVISION_3] || vision_mode_cache[FULL_ELFA_VISION] ||
-        vision_mode_cache[CEPH_VISION] ) {
+    if( vision_mode_cache[NIGHTVISION_3] || vision_mode_cache[CEPH_VISION] ) {
         range += 10;
     } else if( vision_mode_cache[NIGHTVISION_2] || vision_mode_cache[FELINE_VISION] ||
-               vision_mode_cache[URSINE_VISION] || vision_mode_cache[ELFA_VISION] ) {
+               vision_mode_cache[URSINE_VISION] ) {
         range += 4.5;
     } else if( vision_mode_cache[NIGHTVISION_1] ) {
         range += 2;
@@ -3430,6 +3421,21 @@ std::string enum_to_string<character_stat>( character_stat data )
     case character_stat::DEXTERITY:    return "DEX";
     case character_stat::INTELLIGENCE: return "INT";
     case character_stat::PERCEPTION:   return "PER";
+
+        // *INDENT-ON*
+        case character_stat::DUMMY_STAT:
+            break;
+    }
+    cata_fatal( "Invalid character_stat" );
+}
+std::string enum_to_full_string( character_stat data )
+{
+    switch( data ) {
+        // *INDENT-OFF*
+    case character_stat::STRENGTH:     return "strength";
+    case character_stat::DEXTERITY:    return "dexterity";
+    case character_stat::INTELLIGENCE: return "intelligence";
+    case character_stat::PERCEPTION:   return "perception";
 
         // *INDENT-ON*
         case character_stat::DUMMY_STAT:
